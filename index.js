@@ -1,6 +1,6 @@
 /**
  * Takes an array as input, and returns a filtered array according to the parameters passed.
- *  @callback filterCallback
+ *  @callback webSheetFilterCallback
  *  @template T
  *  @param {Array.<T>} items
  *  @return {Array.<T>}
@@ -15,10 +15,24 @@
  */
 
 /**
+ * @callback webSheetSortFunction
+ * @param {Object} a
+ * @param {Object} b
+ * @returns {number}
+ */
+
+/**
+ * @typedef webSheetSort
+ * @type {object}
+ * @property {string} label The text for the select option
+ * @property {webSheetSortFunction} compare The column label to sort on
+ */
+
+/**
  * @typedef webSheetOptions
  * @type {object}
  * @property {string} sheet The URL to the Google Sheet to pull data from
- * @property {HTMLScriptElement} template The Handlebars.JS template to use when rendering results
+ * @property {HTMLElement|string} template The Handlebars.JS template to use when rendering results
  * @property {HTMLElement} output The node where filtered children should be output
  * @property {string} query The Google Visualization query language string used to select data
  * @property {string[]} labels Labels for the columns returned by the provided query
@@ -37,7 +51,7 @@ class WebSheet {
       throw new Error('WebSheet: Provide a Google Sheet URL')
     }
     if (options.template == null) {
-      throw new Error('WebSheet: Provide a Google Sheet URL')
+      throw new Error('WebSheet: Provide a Handlebars template')
     }
     if (options.query == null) {
       throw new Error('WebSheet: Provide a query')
@@ -54,7 +68,7 @@ class WebSheet {
 
     /**
      * Filters that will be applied to the output of this WebSheet
-     * @type {filterCallback[]}
+     * @type {webSheetFilterCallback[]}
      */
     this.filters = []
 
@@ -68,12 +82,12 @@ class WebSheet {
      * The compiled Handlebars template that we will use to populate the page.
      * @type {HandlebarsTemplateDelegate<any>}
      */
-    this.template = Handlebars.compile(options.template.innerHTML)
+    this.template = Handlebars.compile(options.template.innerHTML ?? options.template)
   }
 
   /**
    * Add a new input element that will be watched and will trigger a rerender of elements when it's changed.
-   * @param {filterCallback} filterFunction
+   * @param {webSheetFilterCallback} filterFunction
    * @returns {WebSheet}
    */
   createFilter (filterFunction) {
@@ -117,7 +131,7 @@ class WebSheet {
   }
 
   /**
-   * Return an array of rows that have been filtered according the user's applied filters
+   * Return an array of rows that have been filtered and sorted according the user's applied filters
    * @returns {Array<object>}
    */
   get filteredRows () {
@@ -126,10 +140,18 @@ class WebSheet {
       filteredRows = filter(filteredRows)
     }
 
+    if (this.sorting != null) {
+      const userSort = this.sorting.element.value
+      const sortFunc = this.sorting.options.find(v => v.label === userSort)
+      return [...filteredRows].sort(sortFunc.compare)
+    }
+
     return filteredRows
   }
 
-  // TODO: Implement auto-population of input elements
+  /**
+   * Generates an option element for each unique tag in a column, pulling data from this#inputs
+   */
   populateInputs () {
     for (const { column, deliminator, element } of this.inputs) {
       let selectionBackup = element.value
@@ -157,6 +179,12 @@ class WebSheet {
       // Add any option to the start of the array
       optArray.unshift('Any')
 
+      // Clear out any old options from the select
+      while (element.firstChild) {
+        element.removeChild(element.firstChild)
+      }
+
+      // Populate the options into the select
       optArray.forEach(o => {
         const opt = document.createElement('option')
         opt.value = o
@@ -164,7 +192,6 @@ class WebSheet {
         element.appendChild(opt)
       })
 
-      console.log(selectionBackup, element.options)
       if (Array.from(element.options).find(o => o.value === selectionBackup) === undefined) {
         element.value = 'Any'
         continue
@@ -192,7 +219,6 @@ class WebSheet {
    * @param {string} [separator=null] The separator if the column contains a list of character-delimited values
    */
   selectColumnFilter(element, column, separator) {
-    console.log('Adding input', element)
     // Add an event listener that will rerender the list of results when the select's value is changed
     element.addEventListener('change', this.populateResults.bind(this))
     this.createFilter(rows => {
@@ -245,5 +271,42 @@ class WebSheet {
     })
 
     return this
+  }
+
+  /**
+   * Add a select to be autopopulated with sorting options
+   * @param {HTMLSelectElement} element The select element to be populated
+   * @param {webSheetSort[]} options
+   * @returns WebSheet
+   */
+  setSortSelect(element, options) {
+    element.addEventListener('input', this.populateResults.bind(this))
+
+    for (const sort of options) {
+      const el = document.createElement('option')
+      el.innerText = sort.label
+      el.value = sort.label
+      element.append(el)
+    }
+
+    /**
+     * Configuration for sorting the query results
+     * @type {{options: webSheetSort[], element: HTMLSelectElement}}
+     */
+    this.sorting = {
+      element,
+      options
+    }
+
+    return this
+  }
+
+  /**
+   * Generate a lexical sorting function for the specified column
+   * @param col
+   * @returns {(function(*, *): void)|*}
+   */
+  static columnSort(col) {
+    return (a, b) => a[col].localeCompare(b[col])
   }
 }
