@@ -29,13 +29,21 @@
  */
 
 /**
+ * Called when the websheet encounters an error
+ * @callback webSheetErrorFunction
+ * @param {Error} error
+ * @return {void}
+ */
+
+/**
  * @typedef webSheetOptions
  * @type {object}
  * @property {string} sheet The URL to the Google Sheet to pull data from
- * @property {HTMLElement|string} template The Handlebars.JS template to use when rendering results
+ * @property {HTMLElement|string|function} template The template to use when rendering results. Strings will automatically be compiled using Handlebars if possible.
  * @property {HTMLElement} output The node where filtered children should be output
  * @property {string} query The Google Visualization query language string used to select data
  * @property {string[]} labels Labels for the columns returned by the provided query
+ * @property {webSheetErrorFunction?} errorCallback A function that will be called if an error is encountered
  */
 
 /**
@@ -78,11 +86,17 @@ class WebSheet {
      */
     this.inputs = []
 
-    /**
-     * The compiled Handlebars template that we will use to populate the page.
-     * @type {HandlebarsTemplateDelegate<any>}
-     */
-    this.template = Handlebars.compile(options.template.innerHTML ?? options.template)
+    if (typeof options.template === 'function') {
+      /**
+       * The compiled Handlebars template that we will use to populate the page.
+       * @type {HandlebarsTemplateDelegate<any>}
+       */
+      this.template = options.template
+    } else {
+      this.template = Handlebars.compile(options.template.innerHTML ?? options.template)
+    }
+
+    this.errorCallback = options.errorCallback || console.error
   }
 
   /**
@@ -112,7 +126,7 @@ class WebSheet {
 
   sheetrockCallback (err, options, response) {
     if (err) {
-      console.error(err)
+      this.errorCallback(err)
       return
     }
 
