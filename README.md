@@ -97,7 +97,8 @@ sheet
 Similar to filters, it is easy to populate and sort results based on specific columns. The following example allows
 users to sort based on name, email, or department. Custom sort orders can also be implemented using a custom `compare`
 function. The first specified sort function will be the one used by default. Currently only one sort select can be used
-on a websheet.
+on a websheet. Static functions can also be added to the `WebSheet.sortingComparisons` array. Functions in this array
+will be applied in order, before sorting from `setSortSelect` is applied.
 
 [View example on Codepen](https://codepen.io/katlyn/pen/MWBpLqb)
 ```html

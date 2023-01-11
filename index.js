@@ -97,6 +97,13 @@ class WebSheet {
     }
 
     this.errorCallback = options.errorCallback || console.error
+
+    /**
+     * Array of comparison functions that will be applied to the rows to sort them after filtering but before it is
+     * sorted by setSortSelect
+     * @type {webSheetSortFunction[]}
+     */
+    this.sortingComparisons = []
   }
 
   /**
@@ -152,6 +159,10 @@ class WebSheet {
     let filteredRows = this.rows
     for (const filter of this.filters) {
       filteredRows = filter(filteredRows)
+    }
+
+    for (const comp of this.sortingComparisons) {
+      filteredRows.sort(comp)
     }
 
     if (this.sorting != null) {
