@@ -12,6 +12,7 @@
  * @property {HTMLInputElement | HTMLSelectElement} element
  * @property {string} column
  * @property {string|null} [deliminator]
+ * @property {boolean} includeUnspecified
  */
 
 /**
@@ -178,7 +179,7 @@ class WebSheet {
    * Generates an option element for each unique tag in a column, pulling data from this#inputs
    */
   populateInputs () {
-    for (const { column, deliminator, element } of this.inputs) {
+    for (const { column, deliminator, element, includeUnspecified } of this.inputs) {
       let selectionBackup = element.value
       if (element.options.length === 0) {
         selectionBackup = 'Any'
@@ -211,6 +212,10 @@ class WebSheet {
 
       // Populate the options into the select
       optArray.forEach(o => {
+        // Break early if we don't handle empty strings
+        if (o === '' && !includeUnspecified) {
+          return
+        }
         const opt = document.createElement('option')
         opt.value = o
         opt.innerHTML = o === '' ? 'Not specified' : o
@@ -242,8 +247,9 @@ class WebSheet {
    * @param {HTMLSelectElement} element An HTML input or select element that will be used to filter this value
    * @param {string} column The name of the column to be filtered on
    * @param {string} [separator=null] The separator if the column contains a list of character-delimited values
+   * @param {boolean} [includeUnspecified=true] If empty strings should be included as a "Not specified" option
    */
-  selectColumnFilter(element, column, separator) {
+  selectColumnFilter(element, column, separator, includeUnspecified=true) {
     // Add an event listener that will rerender the list of results when the select's value is changed
     element.addEventListener('change', this.populateResults.bind(this))
     this.createFilter(rows => {
@@ -266,7 +272,8 @@ class WebSheet {
     this.inputs.push({
       column,
       element,
-      deliminator: separator
+      deliminator: separator,
+      includeUnspecified
     })
 
     return this
