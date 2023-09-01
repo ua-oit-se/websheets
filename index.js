@@ -120,7 +120,7 @@ class WebSheet {
     return this
   }
 
-  fetch (callback) {
+  fetch (callback = () => {}) {
     this._fetchCallback = callback
     sheetrock({
       target: this.options.output,
