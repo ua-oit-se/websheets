@@ -120,7 +120,8 @@ class WebSheet {
     return this
   }
 
-  fetch () {
+  fetch (callback) {
+    this._fetchCallback = callback
     sheetrock({
       target: this.options.output,
       url: this.options.sheet,
@@ -150,6 +151,7 @@ class WebSheet {
     // Update the contents of the inputs and results with the
     this.populateInputs()
     this.populateResults()
+    this._fetchCallback()
   }
 
   /**
